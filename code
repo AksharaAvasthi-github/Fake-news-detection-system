@@ -1,0 +1,80 @@
+import pandas as pd
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn import tree
+from collections import Counter
+from matplotlib import pyplot as plt
+
+# Load the dataset
+filename = "Truth_Seeker_Model_Dataset.csv"
+news_dataset = pd.read_csv(filename)
+
+# Filter the dataset and drop duplicates
+filtered_news_dataset = news_dataset[["statement", "target", "BinaryNumTarget"]].copy()
+del news_dataset
+filtered_news_dataset.drop_duplicates(inplace=True)
+
+# Count the target values
+print(filtered_news_dataset["target"].value_counts())
+
+# Use the entire dataset for training
+train_data = filtered_news_dataset["statement"].values
+Y = filtered_news_dataset["BinaryNumTarget"].values
+
+# Initialize CountVectorizer with English stop words
+vectorizer = CountVectorizer(stop_words='english')
+vectorizer.fit(train_data)
+
+# Print the identified unique words along with their indices
+print("Vocabulary: ", vectorizer.vocabulary_)
+
+# Transform the training data into a matrix of token counts
+vector = vectorizer.transform(train_data)
+X = vector.toarray()
+
+print(X.shape)  # Print the shape to verify the dataset size
+print(Y.shape)
+
+# Fit a Decision Tree Classifier
+clf = tree.DecisionTreeClassifier()
+clf = clf.fit(X, Y)
+
+# Process true statements to find the top 10 words
+true_stmt = list(filtered_news_dataset[filtered_news_dataset["BinaryNumTarget"] == 1]["statement"].values)
+
+true_words = []
+for stmt in true_stmt:
+    words = stmt.split()
+    true_words.append(words)
+
+true_words_list = [word for stmt_lst in true_words for word in stmt_lst]
+
+# Exclude stop words from true_words_list using the same stop words list as CountVectorizer
+stop_words = set(vectorizer.get_stop_words())
+true_words_list = [word for word in true_words_list if word.lower() not in stop_words]
+
+# Count the frequency of each word
+words_freq = dict(Counter(true_words_list))
+
+# Sort the words by frequency
+word_sorted = sorted(words_freq.items(), key=lambda x: x[1], reverse=True)
+
+# Get the top 10 words and their frequencies
+top_10_words = []
+top_10_freq = []
+i = 0
+for word, freq in word_sorted:
+    top_10_words.append(word)
+    top_10_freq.append(freq)
+    i += 1
+    if i == 10:
+        break
+
+print(top_10_words)
+print(top_10_freq)
+
+# Plot the top 10 words and their frequencies
+plt.bar(top_10_words, top_10_freq)
+plt.xlabel('Words')
+plt.ylabel('Frequency')
+plt.title('Top 10 Words in True Statements (Excluding Stop Words)')
+plt.show()
